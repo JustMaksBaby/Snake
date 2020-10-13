@@ -3,6 +3,11 @@
 ##
 ## Get latest from https://github.com/github/gitignore/blob/master/VisualStudio.gitignore
 
+
+#folders with .exe and intermediate files
+Debug-Win32/
+Debug-Win64/
+
 # User-specific files
 *.rsuser
 *.suo
