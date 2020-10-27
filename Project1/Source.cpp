@@ -1,5 +1,7 @@
 #include <Windows.h>
 #include <list> 
+#include <thread>
+#include <chrono>
 
 
 #pragma comment (lib, "User32.lib")
@@ -50,9 +52,22 @@ int main()
 	//count foods that we have eaten
 	int  score = 0; 
 
+	/*
+		snake direction 
+			0 - up
+			1 - right
+			2 - down
+			3 - left
+	*/
+	int snakeDirection = 1;  
+	//pressed keys
+	bool rightKey    = false; 
+	bool leftKey     = false; 
+	bool rightKeyOld = false;
+	bool leftKeyOld  = false;
 
 	//snake body
-	std::list<SnakeSegment> snake = { {60,15}, {61,15}, {62,15} };  
+	std::list<SnakeSegment> snakeBody = { {60,15}, {61,15}, {62,15} };  
 
 
 	//food position
@@ -60,28 +75,88 @@ int main()
 	short foodX = 15; 
 	short foodY = 13; 
 
-
+	
 	InitTopBar(screenBuffer);  
 	//game loop 
 	while (1)
 	{
+		//slow down the game
+		std::this_thread::sleep_for(std::chrono::milliseconds(100)); 
+
 		//draw snake body
-		for (auto segment : snake)
+		for (int i = g_ScreenWidth* 3; i < g_ScreenHeight * g_ScreenWidth; ++i)
+		{
+			screenBuffer[i] = ' '; 
+		}
+		for (auto segment : snakeBody)
 		{
 			screenBuffer[g_ScreenWidth * segment.y + segment.x] = isDead ? L'+' : L'0'; 
 		}
 		//draw  snake`s head 
-		screenBuffer[g_ScreenWidth * snake.front().y + snake.front().x] = isDead ? L'X' : L'@';
+		screenBuffer[g_ScreenWidth * snakeBody.front().y + snakeBody.front().x] = isDead ? L'X' : L'@';
 
 
 		//draw a food 
 		screenBuffer[g_ScreenWidth * foodY + foodX] = L'$';
 		//change color for food
 		DWORD  coloredChars = 0;
-		FillConsoleOutputAttribute(hConsole, 10, 1, { foodX,foodY }, &coloredChars);
+		int foodColor = 10; 
+		FillConsoleOutputAttribute(hConsole, foodColor, 1, { foodX,foodY }, &coloredChars); 
 
 
-		int a = 2.3f; 
+		//check if user pressed arrow keys
+		rightKey = GetAsyncKeyState(VK_RIGHT) & 0x8000;   
+		leftKey = GetAsyncKeyState(VK_LEFT) & 0x8000; 
+		if (rightKey && !rightKeyOld)
+		{
+			snakeDirection++; 
+			if (snakeDirection == 4)
+			{
+				snakeDirection = 0; 
+			}
+			rightKeyOld = true;
+		}
+		rightKeyOld = rightKey; 
+		
+
+		if (leftKey && !leftKeyOld)
+		{
+			snakeDirection--;
+			if (snakeDirection == -1)
+			{
+				snakeDirection = 3;
+			}
+			leftKeyOld = true;
+		} 
+		leftKeyOld = leftKey; 
+		
+
+		//move snake
+		switch (snakeDirection)
+		{
+		case 0: // up 
+		{
+			snakeBody.push_front({ snakeBody.front().x, snakeBody.front().y + 1 });
+		}break;
+		case 1: // right
+		{
+			snakeBody.push_front({ snakeBody.front().x - 1 , snakeBody.front().y});
+		}break; 
+		case 2: //down
+		{
+			snakeBody.push_front({ snakeBody.front().x, snakeBody.front().y - 1 });
+		}break;
+		case 3:// left
+		{
+			snakeBody.push_front({ snakeBody.front().x + 1, snakeBody.front().y });
+		}break; 
+		}
+		
+
+		snakeBody.pop_back(); 
+
+
+
 		//Display frame
 		WriteConsoleOutputCharacterW(hConsole, screenBuffer, g_ScreenHeight * g_ScreenWidth, { 0, 0 }, &bytesWritten);
 	}
