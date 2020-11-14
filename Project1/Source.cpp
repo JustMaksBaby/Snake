@@ -101,6 +101,7 @@ int main()
 		//change color for food
 		DWORD  coloredChars = 0;
 		int foodColor = 10; 
+		int whiteColor = 15; 
 		FillConsoleOutputAttribute(hConsole, foodColor, 1, { foodX,foodY }, &coloredChars); 
 
 
@@ -140,8 +141,8 @@ int main()
 		}break;
 		case 1: // right
 		{
-			snakeBody.push_front({ snakeBody.front().x - 1 , snakeBody.front().y});
-		}break; 
+			snakeBody.push_front({ snakeBody.front().x - 1 , snakeBody.front().y });
+		}break;
 		case 2: //down
 		{
 			snakeBody.push_front({ snakeBody.front().x, snakeBody.front().y - 1 });
@@ -149,12 +150,48 @@ int main()
 		case 3:// left
 		{
 			snakeBody.push_front({ snakeBody.front().x + 1, snakeBody.front().y });
-		}break; 
+		}break;
 		}
 		
 
-		snakeBody.pop_back(); 
+		//collision detection for boundaries 
+		if (snakeBody.front().x < 0 || snakeBody.front().x >= g_ScreenWidth)
+		{
+			isDead = true; 
+		}
+		if (snakeBody.front().y < 3 || snakeBody.front().y >= g_ScreenHeight)
+		{
+			isDead = true; 
+		}
 
+		//collision detection with food
+		if (snakeBody.front().x == foodX && snakeBody.front().y == foodY)
+		{
+			score++;   
+			//change place color where the food was to white
+			FillConsoleOutputAttribute(hConsole, whiteColor, 1, { foodX,foodY }, &coloredChars); 
+
+			//find a new place for the food 
+			while (screenBuffer[foodY * g_ScreenWidth + foodX] != L' ') 
+			{
+				foodX = rand() % g_ScreenWidth; 
+				foodY = rand() % (g_ScreenHeight -3) + 3; 
+			}
+		}
+		else
+		{
+			snakeBody.pop_back();
+		}
+
+		//collision detenction when snake touches itself
+		for (std::list<SnakeSegment>::iterator i = snakeBody.begin(); i != snakeBody.end(); ++i) 
+		{
+
+			if (i != snakeBody.begin() && i->x == snakeBody.front().x && i->y == snakeBody.front().y)
+			{
+				isDead = true;
+			}
+		}
 
 
 		//Display frame
