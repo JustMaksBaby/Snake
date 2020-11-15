@@ -2,6 +2,7 @@
 #include <list> 
 #include <thread>
 #include <chrono>
+#include <iostream>
 
 
 #pragma comment (lib, "User32.lib")
@@ -36,8 +37,6 @@ int main()
 	//create console buffer
 	constexpr int BUFFER_SIZE = g_ScreenHeight * g_ScreenWidth;
 	wchar_t* screenBuffer = new wchar_t[BUFFER_SIZE] {};
-	//init  map
-
 
 	//set console buffer 
 	HANDLE  hConsole = CreateConsoleScreenBuffer(GENERIC_READ | GENERIC_WRITE, 0, NULL, CONSOLE_TEXTMODE_BUFFER, NULL); 
@@ -47,157 +46,170 @@ int main()
 	//count chars written in console
 	DWORD bytesWritten = 0; 
 
-	//GENERAL INFO
+	//snake status
 	bool isDead = false; 
-	//count foods that we have eaten
-	int  score = 0; 
 
-	/*
-		snake direction 
-			0 - up
-			1 - right
-			2 - down
-			3 - left
-	*/
-	int snakeDirection = 1;  
+
 	//pressed keys
 	bool rightKey    = false; 
 	bool leftKey     = false; 
 	bool rightKeyOld = false;
 	bool leftKeyOld  = false;
 
-	//snake body
-	std::list<SnakeSegment> snakeBody = { {60,15}, {61,15}, {62,15} };  
-
-
-	//food position
-	// on map can be only one food element 
-	short foodX = 15; 
-	short foodY = 13; 
-
-	
 	InitTopBar(screenBuffer);  
-	//game loop 
-	while (1)
+
+	while (true)
 	{
-		//slow down the game
-		std::this_thread::sleep_for(std::chrono::milliseconds(100)); 
-
-		//draw snake body
-		for (int i = g_ScreenWidth* 3; i < g_ScreenHeight * g_ScreenWidth; ++i)
-		{
-			screenBuffer[i] = ' '; 
-		}
-		for (auto segment : snakeBody)
-		{
-			screenBuffer[g_ScreenWidth * segment.y + segment.x] = isDead ? L'+' : L'0'; 
-		}
-		//draw  snake`s head 
-		screenBuffer[g_ScreenWidth * snakeBody.front().y + snakeBody.front().x] = isDead ? L'X' : L'@';
+		//count foods that we have eaten
+		int  score = 0;
 
 
-		//draw a food 
-		screenBuffer[g_ScreenWidth * foodY + foodX] = L'$';
-		//change color for food
-		DWORD  coloredChars = 0;
-		int foodColor = 10; 
-		int whiteColor = 15; 
-		FillConsoleOutputAttribute(hConsole, foodColor, 1, { foodX,foodY }, &coloredChars); 
-
-
-		//check if user pressed arrow keys
-		rightKey = GetAsyncKeyState(VK_RIGHT) & 0x8000;   
-		leftKey = GetAsyncKeyState(VK_LEFT) & 0x8000; 
-		if (rightKey && !rightKeyOld)
-		{
-			snakeDirection++; 
-			if (snakeDirection == 4)
-			{
-				snakeDirection = 0; 
-			}
-			rightKeyOld = true;
-		}
-		rightKeyOld = rightKey; 
+		//snake body
+		std::list<SnakeSegment> snakeBody = { {60,15}, {61,15}, {62,15} }; 
+		//snake direction
+		int snakeDirection = 1; /*  snake direction 0 - up | 1 - right | 2 - down | 3 - left    */
 		
 
-		if (leftKey && !leftKeyOld)
-		{
-			snakeDirection--;
-			if (snakeDirection == -1)
+		//food position
+		// on map can be only one food element 
+		short foodX = 15;
+		short foodY = 13;
+				
+		while (!isDead)
+		{ 
+			// feel the buffer with empty spaces
+			for (int i = g_ScreenWidth * 3; i < g_ScreenHeight * g_ScreenWidth; ++i)
 			{
-				snakeDirection = 3;
+				screenBuffer[i] = ' ';
 			}
-			leftKeyOld = true;
-		} 
-		leftKeyOld = leftKey; 
-		
+			//slow down the game
+			std::this_thread::sleep_for(std::chrono::milliseconds(100)); 
 
-		//move snake
-		switch (snakeDirection)
-		{
-		case 0: // up 
-		{
-			snakeBody.push_front({ snakeBody.front().x, snakeBody.front().y + 1 });
-		}break;
-		case 1: // right
-		{
-			snakeBody.push_front({ snakeBody.front().x - 1 , snakeBody.front().y });
-		}break;
-		case 2: //down
-		{
-			snakeBody.push_front({ snakeBody.front().x, snakeBody.front().y - 1 });
-		}break;
-		case 3:// left
-		{
-			snakeBody.push_front({ snakeBody.front().x + 1, snakeBody.front().y });
-		}break;
-		}
-		
 
-		//collision detection for boundaries 
-		if (snakeBody.front().x < 0 || snakeBody.front().x >= g_ScreenWidth)
-		{
-			isDead = true; 
-		}
-		if (snakeBody.front().y < 3 || snakeBody.front().y >= g_ScreenHeight)
-		{
-			isDead = true; 
-		}
+			
 
-		//collision detection with food
-		if (snakeBody.front().x == foodX && snakeBody.front().y == foodY)
-		{
-			score++;   
-			//change place color where the food was to white
-			FillConsoleOutputAttribute(hConsole, whiteColor, 1, { foodX,foodY }, &coloredChars); 
 
-			//find a new place for the food 
-			while (screenBuffer[foodY * g_ScreenWidth + foodX] != L' ') 
+			//draw a food 
+			screenBuffer[g_ScreenWidth * foodY + foodX] = L'$';
+			//change color for food
+			DWORD  coloredChars = 0;
+			int foodColor = 10;
+			int whiteColor = 15;
+			FillConsoleOutputAttribute(hConsole, foodColor, 1, { foodX,foodY }, &coloredChars);
+
+
+			//check if user pressed arrow keys
+			rightKey = GetAsyncKeyState(VK_RIGHT) & 0x8000;
+			leftKey = GetAsyncKeyState(VK_LEFT) & 0x8000;
+			if (rightKey && !rightKeyOld)
 			{
-				foodX = rand() % g_ScreenWidth; 
-				foodY = rand() % (g_ScreenHeight -3) + 3; 
+				snakeDirection++;
+				if (snakeDirection == 4)
+				{
+					snakeDirection = 0;
+				}
+				rightKeyOld = true;
 			}
-		}
-		else
-		{
-			snakeBody.pop_back();
-		}
+			rightKeyOld = rightKey;
 
-		//collision detenction when snake touches itself
-		for (std::list<SnakeSegment>::iterator i = snakeBody.begin(); i != snakeBody.end(); ++i) 
-		{
 
-			if (i != snakeBody.begin() && i->x == snakeBody.front().x && i->y == snakeBody.front().y)
+			if (leftKey && !leftKeyOld)
+			{
+				snakeDirection--;
+				if (snakeDirection == -1)
+				{
+					snakeDirection = 3;
+				}
+				leftKeyOld = true;
+			}
+			leftKeyOld = leftKey;
+
+
+			//move snake
+			switch (snakeDirection)
+			{
+			case 0: // up 
+			{
+				snakeBody.push_front({ snakeBody.front().x, snakeBody.front().y + 1 });
+			}break;
+			case 1: // right
+			{
+				snakeBody.push_front({ snakeBody.front().x - 1 , snakeBody.front().y });
+			}break;
+			case 2: //down
+			{
+				snakeBody.push_front({ snakeBody.front().x, snakeBody.front().y - 1 });
+			}break;
+			case 3:// left
+			{
+				snakeBody.push_front({ snakeBody.front().x + 1, snakeBody.front().y });
+			}break;
+			}
+
+
+			//collision detection for boundaries 
+			if (snakeBody.front().x < 0 || snakeBody.front().x >= g_ScreenWidth)
 			{
 				isDead = true;
 			}
+			if (snakeBody.front().y < 3 || snakeBody.front().y >= g_ScreenHeight)
+			{
+				isDead = true;
+			}
+
+			//collision detection with food
+			if (snakeBody.front().x == foodX && snakeBody.front().y == foodY)
+			{
+				score++;
+				//change place color where the food was to white
+				FillConsoleOutputAttribute(hConsole, whiteColor, 1, { foodX,foodY }, &coloredChars);
+
+				//find a new place for the food 
+				while (screenBuffer[foodY * g_ScreenWidth + foodX] != L' ')
+				{
+					foodX = rand() % g_ScreenWidth;
+					foodY = rand() % (g_ScreenHeight - 3) + 3;
+				}
+			}
+			else
+			{
+				snakeBody.pop_back();
+			}
+
+			//collision detenction when snake touches itself
+			for (std::list<SnakeSegment>::iterator i = snakeBody.begin(); i != snakeBody.end(); ++i)
+			{
+
+				if (i != snakeBody.begin() && i->x == snakeBody.front().x && i->y == snakeBody.front().y)
+				{
+					isDead = true;
+				}
+			}
+
+
+			//draw snake body
+			for (auto segment : snakeBody)
+			{
+				screenBuffer[g_ScreenWidth * segment.y + segment.x] = isDead ? L'+' : L'0';
+			}
+			//draw  snake`s head 
+			screenBuffer[g_ScreenWidth * snakeBody.front().y + snakeBody.front().x] = isDead ? L'X' : L'@';
+
+
+
+			//Display frame
+			WriteConsoleOutputCharacterW(hConsole, screenBuffer, g_ScreenHeight * g_ScreenWidth, { 0, 0 }, &bytesWritten);
 		}
 
+		const wchar_t* enterString = L"PRESS ENTER TO START";
+		int count = (g_ScreenWidth / 2 - wcslen(enterString)); 
+		wsprintfW(&screenBuffer[30 * g_ScreenHeight + 10 ],enterString ); 
+		WriteConsoleOutputCharacterW(hConsole, screenBuffer, g_ScreenHeight* g_ScreenWidth, { 0, 0 }, & bytesWritten);
 
-		//Display frame
-		WriteConsoleOutputCharacterW(hConsole, screenBuffer, g_ScreenHeight * g_ScreenWidth, { 0, 0 }, &bytesWritten);
-	}
-
-
+		if (GetAsyncKeyState(VK_RETURN) && 0x8000)
+		{
+			isDead = false; 
+		}
+	} 
 	return 0; 
 }
