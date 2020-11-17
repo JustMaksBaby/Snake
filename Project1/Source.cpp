@@ -3,10 +3,11 @@
 #include <thread>
 #include <chrono>
 #include <iostream>
-
+#include <chrono>
 
 #pragma comment (lib, "User32.lib")
 #pragma comment (lib, "Kernel32.lib")
+ 
 
 //in characters
 static const int g_ScreenWidth  = 80; 
@@ -82,12 +83,6 @@ int main()
 			{
 				screenBuffer[i] = ' ';
 			}
-			//slow down the game
-			std::this_thread::sleep_for(std::chrono::milliseconds(100)); 
-
-
-			
-
 
 			//draw a food 
 			screenBuffer[g_ScreenWidth * foodY + foodX] = L'$';
@@ -97,33 +92,38 @@ int main()
 			int whiteColor = 15;
 			FillConsoleOutputAttribute(hConsole, foodColor, 1, { foodX,foodY }, &coloredChars);
 
-
-			//check if user pressed arrow keys
-			rightKey = GetAsyncKeyState(VK_RIGHT) & 0x8000;
-			leftKey = GetAsyncKeyState(VK_LEFT) & 0x8000;
-			if (rightKey && !rightKeyOld)
+			//catch input from user and slow down the snake
+			auto currentTime = std::chrono::system_clock::now();
+			while ((std::chrono::system_clock::now() - currentTime) < ((snakeDirection % 2 <= 1) ? std::chrono::milliseconds(120) : std::chrono::milliseconds(200)));
 			{
-				snakeDirection++;
-				if (snakeDirection == 4)
+				//check if user pressed arrow keys
+				rightKey = GetAsyncKeyState(VK_RIGHT) & 0x8000;
+				leftKey = GetAsyncKeyState(VK_LEFT) & 0x8000;
+
+				if (rightKey && !rightKeyOld)
 				{
-					snakeDirection = 0;
+					snakeDirection++;
+					if (snakeDirection == 4)
+					{
+						snakeDirection = 0;
+					}
+					rightKeyOld = true;
 				}
-				rightKeyOld = true;
-			}
-			rightKeyOld = rightKey;
+				rightKeyOld = rightKey;
 
 
-			if (leftKey && !leftKeyOld)
-			{
-				snakeDirection--;
-				if (snakeDirection == -1)
+				if (leftKey && !leftKeyOld)
 				{
-					snakeDirection = 3;
+					snakeDirection--;
+					if (snakeDirection == -1)
+					{
+						snakeDirection = 3;
+					}
+					leftKeyOld = true;
 				}
-				leftKeyOld = true;
-			}
-			leftKeyOld = leftKey;
+				leftKeyOld = leftKey;
 
+			}
 
 			//move snake
 			switch (snakeDirection)
