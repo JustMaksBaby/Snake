@@ -22,16 +22,6 @@ struct SnakeSegment
 };
 
 
-void  InitTopBar(wchar_t * buffer)
-{
-	for (int i = 0; i < g_ScreenWidth; ++i)
-	{
-		buffer[i] = L'='; 
-		buffer[2 * g_ScreenWidth + i] = L'=';
-	}
-
-	wsprintfW(buffer + g_ScreenWidth + 30, L"S.N.A.K.E"); 
-}
 
 int main()
 {
@@ -57,10 +47,25 @@ int main()
 	bool rightKeyOld = false;
 	bool leftKeyOld  = false;
 
-	InitTopBar(screenBuffer);  
+	
 
 	while (true)
 	{
+		//draw a top bar
+		const int SCOREINFO_LENGTH = wcslen(L"SCORE:") + 4;
+		for (int i = 0; i < g_ScreenWidth; ++i)
+		{
+			screenBuffer[i] = L'=';
+			screenBuffer[2 * g_ScreenWidth + i] = L'=';
+		}
+
+		wsprintfW(screenBuffer + g_ScreenWidth + 30, L"S.N.A.K.E");
+		wsprintfW(screenBuffer + g_ScreenWidth + 60, L"SCORE:%d", 0);
+		//change color for score area
+		DWORD coloredChars = 0;
+		FillConsoleOutputAttribute(hConsole, 11, SCOREINFO_LENGTH, { 60,  1 }, &coloredChars);
+		int scoreValuePosition = 60 + wcslen(L"SCORE:");
+
 		//count foods that we have eaten
 		int  score = 0;
 
@@ -161,7 +166,10 @@ int main()
 			if (snakeBody.front().x == foodX && snakeBody.front().y == foodY)
 			{
 				score++;
-				//change place color where the food was to white
+				//update score value on the screen
+				wsprintfW(screenBuffer + g_ScreenWidth + scoreValuePosition, L"%d", score); 
+
+				//change place color where the food was to standart
 				FillConsoleOutputAttribute(hConsole, whiteColor, 1, { foodX,foodY }, &coloredChars);
 
 				//find a new place for the food 
