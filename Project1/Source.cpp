@@ -1,34 +1,32 @@
 #include <Windows.h>
 #include <list> 
 #include <thread>
+#include <time.h>
 #include <chrono>
-#include <iostream>
-#include <chrono>
+
+#include "Snake.h"
+#include "Food.h"
+
 
 #pragma comment (lib, "User32.lib")
 #pragma comment (lib, "Kernel32.lib")
  
 
 //in characters
-static const int g_ScreenWidth  = 80; 
-static const int g_ScreenHeight = 30;  
-
-
-struct SnakeSegment
-{
-	//position in chars 
-	short x; 
-	short y; 
-};
-
+extern  const int g_ScreenWidth  = 80; 
+extern  const int g_ScreenHeight = 30;
 
 
 int main()
 {
-	//create console buffer
+	std::srand(time(NULL)); 
+
+//CREATE CONSOLE BUFFER 
+	
+	//buffer to form  screen state
 	constexpr int BUFFER_SIZE = g_ScreenHeight * g_ScreenWidth;
 	wchar_t* screenBuffer = new wchar_t[BUFFER_SIZE] {};
-
+	 
 	//set console buffer 
 	HANDLE  hConsole = CreateConsoleScreenBuffer(GENERIC_READ | GENERIC_WRITE, 0, NULL, CONSOLE_TEXTMODE_BUFFER, NULL); 
 	SetConsoleScreenBufferSize(hConsole, {g_ScreenWidth, g_ScreenHeight});
@@ -36,174 +34,75 @@ int main()
 
 	//count chars written in console
 	DWORD bytesWritten = 0; 
-
-	//snake status
-	bool isDead = false; 
-
-
-	//pressed keys
-	bool rightKey    = false; 
-	bool leftKey     = false; 
-	bool rightKeyOld = false;
-	bool leftKeyOld  = false;
-
 	
-
+	bool startGame = true;
+//GAME LOOP
 	while (true)
 	{
 		//draw a top bar
-		const int SCOREINFO_LENGTH = wcslen(L"SCORE:") + 4;
+		const int SCOREINFO_LENGTH = wcslen(L"SCORE:") + 4; 
+		const int SCORE_POSITION = g_ScreenWidth + 60 + wcslen(L"SCORE:");
+
 		for (int i = 0; i < g_ScreenWidth; ++i)
 		{
 			screenBuffer[i] = L'=';
 			screenBuffer[2 * g_ScreenWidth + i] = L'=';
 		}
-
 		wsprintfW(screenBuffer + g_ScreenWidth + 30, L"S.N.A.K.E");
-		wsprintfW(screenBuffer + g_ScreenWidth + 60, L"SCORE:%d", 0);
-		//change color for score area
+		wsprintfW(screenBuffer + g_ScreenWidth + 60, L"SCORE:%d", 0); 
+
+
+		//change color for score field
 		DWORD coloredChars = 0;
 		FillConsoleOutputAttribute(hConsole, 11, SCOREINFO_LENGTH, { 60,  1 }, &coloredChars);
-		int scoreValuePosition = 60 + wcslen(L"SCORE:");
-
-		//count foods that we have eaten
-		int  score = 0;
-
-
-		//snake body
-		std::list<SnakeSegment> snakeBody = { {60,15}, {61,15}, {62,15} }; 
-		//snake direction
-		int snakeDirection = 1; /*  snake direction 0 - up | 1 - right | 2 - down | 3 - left    */
 		
 
-		//food position
-		// on map can be only one food element 
-		short foodX = 15;
-		short foodY = 13;
-				
-		while (!isDead)
+	//OBJECTS ARRENGEMENT 	
+		Snake snake =  Snake(); 
+		Food food = Food(); 
+	
+		while (startGame)
 		{ 
-			// feel the buffer with empty spaces
+			// fill the buffer with empty spaces
 			for (int i = g_ScreenWidth * 3; i < g_ScreenHeight * g_ScreenWidth; ++i)
 			{
 				screenBuffer[i] = ' ';
 			}
+		
+		//DRAW FOOD
+			food.DrawFood(screenBuffer); 
 
-			//draw a food 
-			screenBuffer[g_ScreenWidth * foodY + foodX] = L'$';
 			//change color for food
-			DWORD  coloredChars = 0;
-			int foodColor = 10;
-			int whiteColor = 15;
-			FillConsoleOutputAttribute(hConsole, foodColor, 1, { foodX,foodY }, &coloredChars);
+			food.SetCharColor(hConsole, 10); 
 
+		//GET USER INPUT
 			//catch input from user and slow down the snake
 			auto currentTime = std::chrono::system_clock::now();
-			while ((std::chrono::system_clock::now() - currentTime) < ((snakeDirection % 2 <= 1) ? std::chrono::milliseconds(120) : std::chrono::milliseconds(200)));
+			while ((std::chrono::system_clock::now() - currentTime) < ((snake.direction % 2 <= 1) ? std::chrono::milliseconds(120) : std::chrono::milliseconds(200)));
 			{
-				//check if user pressed arrow keys
-				rightKey = GetAsyncKeyState(VK_RIGHT) & 0x8000;
-				leftKey = GetAsyncKeyState(VK_LEFT) & 0x8000;
-
-				if (rightKey && !rightKeyOld)
-				{
-					snakeDirection++;
-					if (snakeDirection == 4)
-					{
-						snakeDirection = 0;
-					}
-					rightKeyOld = true;
-				}
-				rightKeyOld = rightKey;
-
-
-				if (leftKey && !leftKeyOld)
-				{
-					snakeDirection--;
-					if (snakeDirection == -1)
-					{
-						snakeDirection = 3;
-					}
-					leftKeyOld = true;
-				}
-				leftKeyOld = leftKey;
-
+				snake.GetKeyInput(); 
 			}
 
-			//move snake
-			switch (snakeDirection)
+			
+			snake.CollisionDetection(g_ScreenWidth, g_ScreenHeight, food.position.x, food.position.y);  
+			if (snake.FoodCollision(food.position.x, food.position.y))
 			{
-			case 0: // up 
+				food.ChangeFoodPosition(hConsole, snake.GetBodyInfo()); 
+				snake.AddSegment(); 
+			}
+			snake.Move(); 
+
+			if (snake.isDead)
 			{
-				snakeBody.push_front({ snakeBody.front().x, snakeBody.front().y + 1 });
-			}break;
-			case 1: // right
-			{
-				snakeBody.push_front({ snakeBody.front().x - 1 , snakeBody.front().y });
-			}break;
-			case 2: //down
-			{
-				snakeBody.push_front({ snakeBody.front().x, snakeBody.front().y - 1 });
-			}break;
-			case 3:// left
-			{
-				snakeBody.push_front({ snakeBody.front().x + 1, snakeBody.front().y });
-			}break;
+				startGame = false;
+				
+				//clean bg color in where the food was, so it becomes prepared for the next round 
+				food.SetCharColor(hConsole, 15); 
 			}
 
 
-			//collision detection for boundaries 
-			if (snakeBody.front().x < 0 || snakeBody.front().x >= g_ScreenWidth)
-			{
-				isDead = true;
-			}
-			if (snakeBody.front().y < 3 || snakeBody.front().y >= g_ScreenHeight)
-			{
-				isDead = true;
-			}
-
-			//collision detection with food
-			if (snakeBody.front().x == foodX && snakeBody.front().y == foodY)
-			{
-				score++;
-				//update score value on the screen
-				wsprintfW(screenBuffer + g_ScreenWidth + scoreValuePosition, L"%d", score); 
-
-				//change place color where the food was to standart
-				FillConsoleOutputAttribute(hConsole, whiteColor, 1, { foodX,foodY }, &coloredChars);
-
-				//find a new place for the food 
-				while (screenBuffer[foodY * g_ScreenWidth + foodX] != L' ')
-				{
-					foodX = rand() % g_ScreenWidth;
-					foodY = rand() % (g_ScreenHeight - 3) + 3;
-				}
-			}
-			else
-			{
-				snakeBody.pop_back();
-			}
-
-			//collision detenction when snake touches itself
-			for (std::list<SnakeSegment>::iterator i = snakeBody.begin(); i != snakeBody.end(); ++i)
-			{
-
-				if (i != snakeBody.begin() && i->x == snakeBody.front().x && i->y == snakeBody.front().y)
-				{
-					isDead = true;
-				}
-			}
-
-
-			//draw snake body
-			for (auto segment : snakeBody)
-			{
-				screenBuffer[g_ScreenWidth * segment.y + segment.x] = isDead ? L'+' : L'0';
-			}
-			//draw  snake`s head 
-			screenBuffer[g_ScreenWidth * snakeBody.front().y + snakeBody.front().x] = isDead ? L'X' : L'@';
-
-
+			snake.DrawSnake(screenBuffer, g_ScreenWidth); 
+			snake.DrawScore(screenBuffer, SCORE_POSITION); 
 
 			//Display frame
 			WriteConsoleOutputCharacterW(hConsole, screenBuffer, g_ScreenHeight * g_ScreenWidth, { 0, 0 }, &bytesWritten);
@@ -214,10 +113,11 @@ int main()
 		wsprintfW(&screenBuffer[30 * g_ScreenHeight + 10 ],enterString ); 
 		WriteConsoleOutputCharacterW(hConsole, screenBuffer, g_ScreenHeight* g_ScreenWidth, { 0, 0 }, & bytesWritten);
 
-		if (GetAsyncKeyState(VK_RETURN) && 0x8000)
+		if (GetAsyncKeyState(VK_RETURN) && 0x8000) // Enter pressed
 		{
-			isDead = false; 
+			startGame = true; 
 		}
 	} 
 	return 0; 
 }
+
